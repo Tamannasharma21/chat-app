@@ -28,13 +28,11 @@ const ChatBox = () => {
     try {
       await updateDoc(doc(db, 'messages', messagesId), {
         messages: arrayUnion({
-          // ✅ sId is always the logged in user's id
           sId: userData.id,
           text: input.trim(),
           createdAt: new Date(),
         }),
       })
-
       const userIDs = [chatUser.rId, userData.id]
       userIDs.forEach(async (id) => {
         const ref = doc(db, 'chats', id)
@@ -65,7 +63,6 @@ const ChatBox = () => {
     typingTimeout.current = setTimeout(() => setIsTyping(false), 1500)
   }
 
-  // ✅ Fixed time format
   const convertTimestamp = (timestamp) => {
     const date = timestamp.toDate()
     const hour = date.getHours()
@@ -133,7 +130,7 @@ const ChatBox = () => {
 
   const isOnline = chatUser && Date.now() - chatUser.userData?.lastSeen <= 70000
 
-  // ✅ Group messages by date
+  // Group messages by date
   const groupedMessages = []
   let lastDate = null
   const reversed = [...messages].reverse()
@@ -149,18 +146,12 @@ const ChatBox = () => {
   return chatUser ? (
     <div className={`chat-box ${chatVisible ? '' : 'hidden'}`}>
 
-      {/* Header */}
       <div className='chat-user'>
-        <img
-          src={chatUser.userData?.avatar || assets.profile_img}
-          alt='avatar'
-        />
+        <img src={chatUser.userData?.avatar || assets.profile_img} alt='avatar' />
         <div className='chat-user-details'>
           <p className='chat-user-name'>
             {chatUser.userData?.name}
-            {isOnline
-              ? <img className='dot' src={assets.green_dot} alt='online' />
-              : null}
+            {isOnline ? <img className='dot' src={assets.green_dot} alt='online' /> : null}
           </p>
           <span className={`chat-user-status ${!isOnline ? 'offline' : ''}`}>
             {isTyping ? 'typing...' : isOnline ? 'Online' : 'Offline'}
@@ -174,11 +165,9 @@ const ChatBox = () => {
         />
       </div>
 
-      {/* Messages */}
       <div className='chat-msg'>
         <div ref={scrollEnd}></div>
 
-        {/* Typing indicator */}
         {isTyping && (
           <div className='r-msg typing-row'>
             <div className='typing-bubble'>
@@ -188,16 +177,14 @@ const ChatBox = () => {
         )}
 
         {groupedMessages.map((item, index) => {
-          // Date divider
           if (item.type === 'divider') return (
             <div key={`d-${index}`} className='date-divider'>
               <span>{item.label}</span>
             </div>
           )
 
-          // ✅ KEY FIX: compare sId with userData.id to determine sent/received
-          
-const isSent = item.sId === userData?.id
+          // ✅ This is the key fix - comparing sId with userData.id
+          const isSent = String(item.sId) === String(userData?.id)
 
           return (
             <div key={index} className={isSent ? 's-msg' : 'r-msg'}>
@@ -205,26 +192,14 @@ const isSent = item.sId === userData?.id
                 ? <img className='msg-img' src={item.image} alt='shared' />
                 : <p className='msg'>{item.text}</p>
               }
-              <div className='msg-meta'>
-                <img
-                  src={
-                    isSent
-                      ? userData?.avatar || assets.avatar_icon
-                      : chatUser.userData?.avatar || assets.avatar_icon
-                  }
-                  alt=''
-                />
-                <p>
-                  {convertTimestamp(item.createdAt)}
-                  {isSent ? ' ✓✓' : ''}
-                </p>
+              <div className='msg-time'>
+                <p>{convertTimestamp(item.createdAt)}{isSent ? ' ✓✓' : ''}</p>
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Input */}
       <div className='chat-input'>
         <div className='chat-input-field'>
           <input
