@@ -78,13 +78,23 @@
 }
 
 .r-msg {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: flex-start;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  justify-content: flex-start !important;
   gap: 8px;
   padding: 2px 16px;
   width: 100%;
+}
+
+.r-msg .msg {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+.s-msg .msg {
+  margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
 /* ── Sent bubble (RIGHT - purple) ── */
