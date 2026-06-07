@@ -185,7 +185,7 @@ const ChatBox = () => {
           )
 
           // ✅ This is the key fix - comparing sId with userData.id
-         const isSent = item.sId === userData?.id || item.sId === auth.currentUser?.uid
+         const isSent = item.sId === auth.currentUser?.uid
 
           return (
             <div key={index} className={isSent ? 's-msg' : 'r-msg'}>
