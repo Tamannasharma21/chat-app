@@ -8,7 +8,16 @@ import { toast } from 'react-toastify'
 import upload from '../../lib/upload'
 
 const ChatBox = () => {
-  const { userData, messagesId, chatUser, messages, setMessages, chatVisible, setChatVisible } = useContext(AppContext)
+  const {
+    userData,
+    messagesId,
+    chatUser,
+    messages,
+    setMessages,
+    chatVisible,
+    setChatVisible,
+  } = useContext(AppContext)
+
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const scrollEnd = useRef()
@@ -18,8 +27,14 @@ const ChatBox = () => {
     if (!input.trim() || !messagesId) return
     try {
       await updateDoc(doc(db, 'messages', messagesId), {
-        messages: arrayUnion({ sId: userData.id, text: input.trim(), createdAt: new Date() }),
+        messages: arrayUnion({
+          // ✅ sId is always the logged in user's id
+          sId: userData.id,
+          text: input.trim(),
+          createdAt: new Date(),
+        }),
       })
+
       const userIDs = [chatUser.rId, userData.id]
       userIDs.forEach(async (id) => {
         const ref = doc(db, 'chats', id)
@@ -30,12 +45,16 @@ const ChatBox = () => {
           if (idx !== -1) {
             data.chatsData[idx].lastMessage = input.trim()
             data.chatsData[idx].updatedAt = Date.now()
-            if (data.chatsData[idx].rId === userData.id) data.chatsData[idx].messageSeen = false
+            if (data.chatsData[idx].rId === userData.id) {
+              data.chatsData[idx].messageSeen = false
+            }
             await updateDoc(ref, { chatsData: data.chatsData })
           }
         }
       })
-    } catch (error) { toast.error(error.message) }
+    } catch (error) {
+      toast.error(error.message)
+    }
     setInput('')
   }
 
@@ -46,6 +65,7 @@ const ChatBox = () => {
     typingTimeout.current = setTimeout(() => setIsTyping(false), 1500)
   }
 
+  // ✅ Fixed time format
   const convertTimestamp = (timestamp) => {
     const date = timestamp.toDate()
     const hour = date.getHours()
@@ -71,7 +91,11 @@ const ChatBox = () => {
       const fileUrl = await upload(file)
       if (fileUrl && messagesId) {
         await updateDoc(doc(db, 'messages', messagesId), {
-          messages: arrayUnion({ sId: userData.id, image: fileUrl, createdAt: new Date() }),
+          messages: arrayUnion({
+            sId: userData.id,
+            image: fileUrl,
+            createdAt: new Date(),
+          }),
         })
         const userIDs = [chatUser.rId, userData.id]
         userIDs.forEach(async (id) => {
@@ -88,11 +112,15 @@ const ChatBox = () => {
           }
         })
       }
-    } catch (error) { toast.error(error.message) }
+    } catch (error) {
+      toast.error(error.message)
+    }
     e.target.value = ''
   }
 
-  useEffect(() => { scrollEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => {
+    scrollEnd.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   useEffect(() => {
     if (messagesId) {
@@ -105,7 +133,7 @@ const ChatBox = () => {
 
   const isOnline = chatUser && Date.now() - chatUser.userData?.lastSeen <= 70000
 
-  // Group messages by date
+  // ✅ Group messages by date
   const groupedMessages = []
   let lastDate = null
   const reversed = [...messages].reverse()
@@ -123,27 +151,34 @@ const ChatBox = () => {
 
       {/* Header */}
       <div className='chat-user'>
-        <img src={chatUser.userData?.avatar || assets.profile_img} alt='avatar' />
+        <img
+          src={chatUser.userData?.avatar || assets.profile_img}
+          alt='avatar'
+        />
         <div className='chat-user-details'>
           <p className='chat-user-name'>
             {chatUser.userData?.name}
-            {isOnline ? <img className='dot' src={assets.green_dot} alt='online' /> : null}
+            {isOnline
+              ? <img className='dot' src={assets.green_dot} alt='online' />
+              : null}
           </p>
-          <span className='chat-user-status'>
+          <span className={`chat-user-status ${!isOnline ? 'offline' : ''}`}>
             {isTyping ? 'typing...' : isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
-        <div className='chat-header-actions'>
-          <button className='icon-btn' title='Voice call'>📞</button>
-          <button className='icon-btn' title='Video call'>🎥</button>
-        </div>
-        <img onClick={() => setChatVisible(false)} className='arrow' src={assets.arrow_icon} alt='back' />
+        <img
+          onClick={() => setChatVisible(false)}
+          className='arrow'
+          src={assets.arrow_icon}
+          alt='back'
+        />
       </div>
 
       {/* Messages */}
       <div className='chat-msg'>
         <div ref={scrollEnd}></div>
 
+        {/* Typing indicator */}
         {isTyping && (
           <div className='r-msg typing-row'>
             <div className='typing-bubble'>
@@ -153,12 +188,17 @@ const ChatBox = () => {
         )}
 
         {groupedMessages.map((item, index) => {
+          // Date divider
           if (item.type === 'divider') return (
             <div key={`d-${index}`} className='date-divider'>
               <span>{item.label}</span>
             </div>
           )
-          const isSent = item.sId === userData.id
+
+          // ✅ KEY FIX: compare sId with userData.id to determine sent/received
+          
+const isSent = item.sId === userData?.id
+
           return (
             <div key={index} className={isSent ? 's-msg' : 'r-msg'}>
               {item.image
@@ -166,8 +206,18 @@ const ChatBox = () => {
                 : <p className='msg'>{item.text}</p>
               }
               <div className='msg-meta'>
-                <img src={isSent ? userData.avatar || assets.avatar_icon : chatUser.userData?.avatar || assets.avatar_icon} alt='' />
-                <p>{convertTimestamp(item.createdAt)}{isSent ? ' ✓✓' : ''}</p>
+                <img
+                  src={
+                    isSent
+                      ? userData?.avatar || assets.avatar_icon
+                      : chatUser.userData?.avatar || assets.avatar_icon
+                  }
+                  alt=''
+                />
+                <p>
+                  {convertTimestamp(item.createdAt)}
+                  {isSent ? ' ✓✓' : ''}
+                </p>
               </div>
             </div>
           )
@@ -184,7 +234,13 @@ const ChatBox = () => {
             type='text'
             placeholder='Type a message...'
           />
-          <input onChange={sendImage} type='file' id='image' accept='image/png,image/jpeg' hidden />
+          <input
+            onChange={sendImage}
+            type='file'
+            id='image'
+            accept='image/png,image/jpeg'
+            hidden
+          />
           <label htmlFor='image' className='attach-btn' title='Send image'>
             <img src={assets.gallery_icon} alt='gallery' />
           </label>

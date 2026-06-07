@@ -21,7 +21,7 @@ const AppContextProvider = (props) => {
       const userRef = doc(db, "users", uid);
       const userSnap = await getDoc(userRef);
       const data = userSnap.data();
-      setUserData(data);
+setUserData({ ...data, id: uid });
 
       if (data.avatar && data.name) {
         navigate("/chat");
@@ -31,7 +31,6 @@ const AppContextProvider = (props) => {
 
       await updateDoc(userRef, { lastSeen: Date.now() });
 
-      // ✅ Fixed: was auth.chatUser (wrong), now auth.currentUser (correct)
       const interval = setInterval(async () => {
         if (auth.currentUser) {
           await updateDoc(userRef, { lastSeen: Date.now() });
@@ -44,18 +43,25 @@ const AppContextProvider = (props) => {
     }
   };
 
-  // Real-time chat list listener
+  // ✅ Fixed: deduplicate by rId to prevent same user showing multiple times
   useEffect(() => {
     if (userData) {
       const chatRef = doc(db, "chats", userData.id);
       const unSub = onSnapshot(chatRef, async (res) => {
         const chatItems = res.data().chatsData;
         const tempData = [];
+        const seenRIds = new Set();
+
         for (const item of chatItems) {
+          // ✅ Skip duplicates
+          if (seenRIds.has(item.rId)) continue;
+          seenRIds.add(item.rId);
+
           const userRef = doc(db, "users", item.rId);
           const userSnap = await getDoc(userRef);
           tempData.push({ ...item, userData: userSnap.data() });
         }
+
         setChatData(tempData.sort((a, b) => b.updatedAt - a.updatedAt));
       });
       return () => unSub();
