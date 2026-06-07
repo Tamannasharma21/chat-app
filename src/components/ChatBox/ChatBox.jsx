@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import './ChatBox.css'
 import assets from '../../assets/assets'
+import { auth } from '../../config/firebase'
 import { AppContext } from '../../context/AppContext'
 import { arrayUnion, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
@@ -184,7 +185,7 @@ const ChatBox = () => {
           )
 
           // ✅ This is the key fix - comparing sId with userData.id
-          const isSent = String(item.sId) === String(userData?.id)
+         const isSent = item.sId === userData?.id || item.sId === auth.currentUser?.uid
 
           return (
             <div key={index} className={isSent ? 's-msg' : 'r-msg'}>
