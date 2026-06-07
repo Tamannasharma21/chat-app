@@ -1,10 +1,9 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import './ChatBox.css'
 import assets from '../../assets/assets'
-import { auth } from '../../config/firebase'
 import { AppContext } from '../../context/AppContext'
 import { arrayUnion, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore'
-import { db } from '../../config/firebase'
+import { db, auth } from '../../config/firebase'
 import { toast } from 'react-toastify'
 import upload from '../../lib/upload'
 
@@ -29,7 +28,7 @@ const ChatBox = () => {
     try {
       await updateDoc(doc(db, 'messages', messagesId), {
         messages: arrayUnion({
-          sId: userData.id,
+          sId: auth.currentUser.uid,
           text: input.trim(),
           createdAt: new Date(),
         }),
@@ -90,7 +89,7 @@ const ChatBox = () => {
       if (fileUrl && messagesId) {
         await updateDoc(doc(db, 'messages', messagesId), {
           messages: arrayUnion({
-            sId: userData.id,
+            sId: auth.currentUser.uid,
             image: fileUrl,
             createdAt: new Date(),
           }),
@@ -123,7 +122,11 @@ const ChatBox = () => {
   useEffect(() => {
     if (messagesId) {
       const unSub = onSnapshot(doc(db, 'messages', messagesId), (res) => {
-        setMessages(res.data().messages.reverse())
+        // ✅ OLD messages on TOP, NEW messages at BOTTOM
+        const sorted = [...res.data().messages].sort(
+          (a, b) => a.createdAt.toMillis() - b.createdAt.toMillis()
+        )
+        setMessages(sorted)
       })
       return () => unSub()
     }
@@ -134,8 +137,7 @@ const ChatBox = () => {
   // Group messages by date
   const groupedMessages = []
   let lastDate = null
-  const reversed = [...messages].reverse()
-  reversed.forEach((msg) => {
+  messages.forEach((msg) => {
     const dateLabel = getDateLabel(msg.createdAt)
     if (dateLabel !== lastDate) {
       groupedMessages.push({ type: 'divider', label: dateLabel })
@@ -147,6 +149,7 @@ const ChatBox = () => {
   return chatUser ? (
     <div className={`chat-box ${chatVisible ? '' : 'hidden'}`}>
 
+      {/* Header */}
       <div className='chat-user'>
         <img src={chatUser.userData?.avatar || assets.profile_img} alt='avatar' />
         <div className='chat-user-details'>
@@ -166,17 +169,8 @@ const ChatBox = () => {
         />
       </div>
 
+      {/* Messages - OLD on TOP new at BOTTOM */}
       <div className='chat-msg'>
-        <div ref={scrollEnd}></div>
-
-        {isTyping && (
-          <div className='r-msg typing-row'>
-            <div className='typing-bubble'>
-              <span></span><span></span><span></span>
-            </div>
-          </div>
-        )}
-
         {groupedMessages.map((item, index) => {
           if (item.type === 'divider') return (
             <div key={`d-${index}`} className='date-divider'>
@@ -184,8 +178,8 @@ const ChatBox = () => {
             </div>
           )
 
-          // ✅ This is the key fix - comparing sId with userData.id
-         const isSent = item.sId === auth.currentUser?.uid
+          // ✅ FINAL FIX: use auth.currentUser.uid directly
+          const isSent = item.sId === auth.currentUser?.uid
 
           return (
             <div key={index} className={isSent ? 's-msg' : 'r-msg'}>
@@ -199,8 +193,21 @@ const ChatBox = () => {
             </div>
           )
         })}
+
+        {/* Typing indicator */}
+        {isTyping && (
+          <div className='r-msg typing-row'>
+            <div className='typing-bubble'>
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        )}
+
+        {/* scroll anchor at BOTTOM */}
+        <div ref={scrollEnd}></div>
       </div>
 
+      {/* Input */}
       <div className='chat-input'>
         <div className='chat-input-field'>
           <input
@@ -210,18 +217,12 @@ const ChatBox = () => {
             type='text'
             placeholder='Type a message...'
           />
-          <input
-            onChange={sendImage}
-            type='file'
-            id='image'
-            accept='image/png,image/jpeg'
-            hidden
-          />
-          <label htmlFor='image' className='attach-btn' title='Send image'>
+          <input onChange={sendImage} type='file' id='image' accept='image/png,image/jpeg' hidden />
+          <label htmlFor='image' className='attach-btn'>
             <img src={assets.gallery_icon} alt='gallery' />
           </label>
         </div>
-        <button className='send-btn' onClick={sendMessage} title='Send'>
+        <button className='send-btn' onClick={sendMessage}>
           <img src={assets.send_button} alt='send' />
         </button>
       </div>
